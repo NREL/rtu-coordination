@@ -1,0 +1,104 @@
+$controlHeight: 68px;
+$chartHeight: calc(50vh - #{$controlHeight});
+
+#controls {
+  align-items: center;
+  background-color: #565656;
+  bottom: 0;
+  color: #fff;
+  display: flex;
+  padding: 10px;
+  position: absolute;
+  width: 100%;
+
+  * {
+    user-select: none;
+  }
+
+  mat-icon {
+    $size: 48px;
+    cursor: pointer;
+    font-size: $size;
+    height: $size;
+    width: $size;
+  }
+
+  mat-slider {
+    $color: #ffd740;
+    margin-left: 20px;
+    margin-right: 20px;
+    width: 100%;
+
+    &.mat-slider::ng-deep {
+      .mat-slider-track-fill {
+        background-color: $color;
+      }
+
+      .mat-slider-thumb {
+        height: 30px;
+        width: 30px;
+        background-color: $color;
+        border: 2px solid $color;
+        bottom: -15px;
+        right: -15px;
+      }
+    }
+
+    &.mat-slider-min-value:not(.mat-slider-thumb-label-showing)::ng-deep .mat-slider-thumb {
+      background-color: $color;
+      border: 2px solid $color;
+    }
+  }
+
+  ::ng-deep .disable-animation * {
+    transition: none !important;
+  }
+}
+
+#nav {
+  margin: 20px;
+  position: absolute;
+  right: 0;
+  top: 0;
+
+  button:not(:last-child) {
+    margin-right: 12px;
+  }
+}
+
+#vis {
+  background-image: linear-gradient(#fff, #818a92);
+  display: flex;
+  height: 50vh;
+
+  > div {
+    background: linear-gradient(#fff, #818a92) no-repeat center center;
+    background-size: contain;
+    //transition: background-image 300ms cubic-bezier(0.075, 0.82, 0.165, 1);
+    width: 50vw;
+  }
+}
+
+#charts {
+  background-color: #fff;
+  bottom: $controlHeight;
+  height: $chartHeight;
+  position: absolute;
+  width: 100%;
+}
+
+.chart {
+  display: inline-block;
+  height: $chartHeight;
+  position: absolute;
+  top: 0;
+  width: 50%;
+
+  &:nth-child(2) {
+    right: 0;
+  }
+
+  ::ng-deep svg g[opacity='0.3'] {
+    display: none;
+  }
+}

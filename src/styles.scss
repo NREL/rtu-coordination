@@ -1,1 +1,45 @@
 /* You can add global styles to this file, and also import other style files */
+
+@mixin font-face($name, $path, $weight: null, $style: null) {
+  @font-face {
+    font-family: quote($name);
+    font-style: $style;
+    font-weight: $weight;
+    src: url(quote($path + '.woff2')) format('woff2');
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+@include font-face(OpenSans, './fonts/OpenSans-Light', 300, normal);
+@include font-face(OpenSans, './fonts/OpenSans-Regular', normal, normal);
+@include font-face(OpenSans, './fonts/OpenSans-Bold', bold, normal);
+
+@include font-face('Material Icons', './fonts/MaterialIcons-Regular', normal, normal);
+
+* {
+  box-sizing: border-box;
+  font-family: OpenSans, 'Helvetica Neue', sans-serif;
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
