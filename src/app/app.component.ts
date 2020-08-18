@@ -66,7 +66,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   leftStyle: string;
   rightStyle: string;
   private bars = [];
-  private costs = [];
   private charts: am4charts.XYChart[] = [];
   private dataReady: BehaviorSubject<boolean> = new BehaviorSubject(false);
   private $dataReady = this.dataReady.asObservable();
@@ -75,6 +74,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private $peakUncoord = this.peakUncoord.asObservable().pipe(distinctUntilChanged());
   private peakCoord = new Subject<string>();
   private $peakCoord = this.peakCoord.asObservable().pipe(distinctUntilChanged());
+  private uncoordData: { date: Date; ev: number; rtu: number }[];
+  private coordData: { date: Date; ev: number; rtu: number }[];
 
   constructor(
     private papa: Papa,
@@ -143,15 +144,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     const title = topContainer.createChild(am4core.Label);
     title.align = 'left';
-    title.fontSize = 36;
-    title.text = id === 'chart-uncoord' ? 'BASELINE' : 'IMPROVED';
+    title.fontSize = 30;
+    if (this.view === 'rtu') {
+      title.text = id === 'chart-uncoord' ? 'Base Building' : 'RTU Coordination';
+    } else if (this.view === 'ev') {
+      title.text = id === 'chart-uncoord' ? 'Base Building + EVs' : 'RTU Coordination + EVs + ESS';
+    }
     title.dx = 40;
-
-    // const cost = topContainer.createChild(am4core.Label);
-    // cost.align = 'center';
-    // cost.paddingTop = 20;
-    // cost.text = 'COST';
-    // this.costs.push(cost);
+    title.dy = 6;
 
     const peak = topContainer.createChild(am4core.Label);
     peak.align = 'right';
@@ -161,25 +161,22 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     chart.data = data;
     chart.paddingRight = 24;
-    // chart.colors.list = [
-    //   am4core.color('#434348'),
-    //   id === 'chart-uncoord' ? am4core.color('#283890') : am4core.color('#3ab54a')
-    // ];
     chart.colors.list = [
-      am4core.color('#3ab54a'),
-      am4core.color('#283890')
+      id === 'chart-uncoord' ? am4core.color('#283890') : am4core.color('#3ab54a')
     ];
 
     const dateAxis = chart.xAxes.push(new am4charts.DateAxis());
     dateAxis.dateFormats.setKey('hour', 'ha');
     dateAxis.periodChangeDateFormats.setKey('hour', 'ha');
+    // dateAxis.groupData = true;
+    // dateAxis.groupInterval = {timeUnit: 'minute', count: 5};
 
     dateAxis.renderer.grid.template.location = 0;
     dateAxis.renderer.labels.template.dy = -8;
     dateAxis.renderer.minGridDistance = 60;
-    // dateAxis.title.text = 'TIME (JULY 3RD)';
-    // dateAxis.title.marginTop = -10;
-    // dateAxis.title.marginBottom = -5;
+    dateAxis.title.text = 'TIME (JULY 3RD)';
+    dateAxis.title.marginTop = -10;
+    dateAxis.title.marginBottom = -5;
 
     const bar = dateAxis.axisRanges.create();
     bar.date = this.rtuData[0].Time;
@@ -208,27 +205,23 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     // otherSeries.tooltipText = '{valueY.formatNumber(\'0.0\')} kW';
     // otherSeries.name = 'BASE LOAD';
 
-    if (this.view === 'rtu') {
-      const rtuSeries = chart.series.push(new am4charts.LineSeries());
-      rtuSeries.dataFields.dateX = 'date';
-      rtuSeries.dataFields.valueY = 'rtu';
-      rtuSeries.tooltipText = '{valueY.formatNumber(\'0.0\')} kW';
-      rtuSeries.name = 'TOTAL LOAD';
-    } else if (this.view === 'ev') {
-      if (id === 'chart-uncoord') {
-        const evSeries = chart.series.push(new am4charts.LineSeries());
-        evSeries.dataFields.dateX = 'date';
-        evSeries.dataFields.valueY = 'ev';
-        evSeries.tooltipText = '{valueY.formatNumber(\'0.0\')} kW';
-        evSeries.name = 'BLDG + EV';
-      } else {
-        const essSeries = chart.series.push(new am4charts.LineSeries());
-        essSeries.dataFields.dateX = 'date';
-        essSeries.dataFields.valueY = 'ess';
-        essSeries.tooltipText = '{valueY.formatNumber(\'0.0\')} kW';
-        essSeries.name = 'BLDG + EV + ESS';
-      }
-    }
+    const rtuSeries = chart.series.push(new am4charts.LineSeries());
+    rtuSeries.dataFields.dateX = 'date';
+    rtuSeries.dataFields.valueY = 'rtu';
+    rtuSeries.tooltipText = '{valueY.formatNumber(\'0.0\')} kW';
+    rtuSeries.hidden = this.view !== 'rtu';
+    // rtuSeries.name = 'TOTAL LOAD';
+
+    const evSeries = chart.series.push(new am4charts.LineSeries());
+    evSeries.dataFields.dateX = 'date';
+    evSeries.dataFields.valueY = 'ev';
+    evSeries.tooltipText = '{valueY.formatNumber(\'0.0\')} kW';
+    evSeries.hidden = this.view !== 'ev';
+    // if (id === 'chart-uncoord') {
+    //   evSeries.name = 'BLDG + EV';
+    // } else {
+    //   evSeries.name = 'BLDG + EV + ESS';
+    // }
 
     // const evSeries = chart.series.push(new am4charts.LineSeries());
     // evSeries.dataFields.dateX = 'date';
@@ -262,14 +255,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       }
     });
 
-    chart.legend = new am4charts.Legend();
-    chart.legend.contentAlign = 'right';
-    chart.legend.fontSize = 12;
-    chart.legend.marginBottom = -15;
-    chart.legend.marginTop = -25;
-    chart.legend.itemContainers.template.clickable = false;
-    chart.legend.itemContainers.template.focusable = false;
-    chart.legend.itemContainers.template.cursorOverStyle = am4core.MouseCursorStyle.default;
+    // chart.legend = new am4charts.Legend();
+    // chart.legend.contentAlign = 'right';
+    // chart.legend.fontSize = 12;
+    // chart.legend.marginBottom = -15;
+    // chart.legend.marginTop = -25;
+    // chart.legend.itemContainers.template.clickable = false;
+    // chart.legend.itemContainers.template.focusable = false;
+    // chart.legend.itemContainers.template.cursorOverStyle = am4core.MouseCursorStyle.default;
 
     this.charts.push(chart);
     this.updatePeaks(0);
@@ -305,21 +298,21 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.$dataReady.subscribe(ready => {
       if (ready) {
         this.zone.runOutsideAngular(() => {
-          const uncoordData = this.rtuData.map(record => ({
+          this.uncoordData = this.rtuData.map(record => ({
             date: record.Time,
             rtu: record['Bldg (kW) UnCoord'],
-            ev: record['Bldg + EV (kW) UnCoord'],
+            ev: record['Bldg + EV (kW) UnCoord']
             // base: record['Bldg Other (kW) UnCoord']
           }));
-          const coordData = this.rtuData.map(record => ({
+          this.coordData = this.rtuData.map(record => ({
             date: record.Time,
-            ev: record['Bldg (kW) Coord'],
-            ess: record['Bldg + EV + ESS (kW) Coord'],
+            rtu: record['Bldg (kW) Coord'],
+            ev: record['Bldg + EV + ESS (kW) Coord']
             // base: record['Bldg Other (kW) Coord']
           }));
 
-          this.createChart('chart-uncoord', uncoordData);
-          this.createChart('chart-coord', coordData);
+          this.createChart('chart-uncoord', this.uncoordData);
+          this.createChart('chart-coord', this.coordData);
         });
       }
     });
@@ -345,7 +338,29 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   setView(view: ViewType): void {
     this.view = view;
     localStorage.setItem('view', view);
-    // TODO update chart.yAxes.max, swap chart series'
+
+    this.charts.forEach((chart, i) => {
+      if (chart) {
+        if (this.view === 'rtu') {
+          const title = i === 0 ? 'Base Building' : 'RTU Coordination';
+          // @ts-ignore
+          chart.chartContainer.children.values[0].children.values[0].setPropertyValue('text', title, true);
+          // @ts-ignore
+          chart.yAxes.values[0].max = this.rtuData[this.rtuData.length - 1]['Peak Running (kW) UnCoord'];
+          chart.series.getIndex(1).hide(0);
+          chart.series.getIndex(0).show();
+        } else if (this.view === 'ev') {
+          const title = i === 0 ? 'Base Building + EVs' : 'RTU Coordination + EVs + ESS';
+          // @ts-ignore
+          chart.chartContainer.children.values[0].children.values[0].setPropertyValue('text', title, true);
+          // @ts-ignore
+          chart.yAxes.values[0].max = this.rtuData[this.rtuData.length - 1]['Peak EV (kW) Coord'];
+          chart.series.getIndex(0).hide(0);
+          chart.series.getIndex(1).show();
+        }
+      }
+    });
+
     this.update(this.timeIndex.current);
   }
 
@@ -436,10 +451,17 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       if (data['Port 2 (kW)'] > 0) {
         left.unshift('tesla-3');
         right.unshift('tesla-3');
+      } else {
+        left.unshift('tesla-3-translucent');
+        right.unshift('tesla-3-translucent');
       }
+
       if (data['Port 1 (kW)'] > 0) {
         left.unshift('tesla-x');
         right.unshift('tesla-x');
+      } else {
+        left.unshift('tesla-x-translucent');
+        right.unshift('tesla-x-translucent');
       }
 
       right.unshift('storage');

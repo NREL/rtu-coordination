@@ -1,7 +1,7 @@
 <div>
   <div id="nav">
-    <button mat-raised-button (click)="setView('rtu')" [color]="view === 'rtu' ? 'primary' : null">RTU Coordination</button>
-    <button mat-raised-button (click)="setView('ev')" [color]="view === 'ev' ? 'primary' : null">EV Charging</button>
+    <button mat-raised-button (click)="view !== 'rtu' && setView('rtu')" [color]="view === 'rtu' ? 'primary' : null">RTU Coordination</button>
+    <button mat-raised-button (click)="view !== 'ev' && setView('ev')" [color]="view === 'ev' ? 'primary' : null">EV Charging</button>
   </div>
   <div id="vis" [ngClass]="view">
     <div [ngStyle]="{'background-image': leftStyle}"></div>
