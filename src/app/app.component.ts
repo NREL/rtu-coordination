@@ -42,7 +42,7 @@ export interface Record {
   'Port 2 (kW)': number;
   'Bldg + EV (kW) Coord': number;
   'Bldg + EV + ESS (kW) Coord': number;
-  'Peak EV (kW) Coord': number;
+  'Peak EV (kW) UnCoord': number;
   'Peak ESS (kW) Coord': number;
 }
 
@@ -61,27 +61,27 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     max: 1438
   };
   rtuData: Record[] = [];
-  active: string;
+  active: 'chart-uncoord' | 'chart-coord' | null = null;
   view: ViewType = 'rtu';
-  leftStyle: string;
-  rightStyle: string;
-  private bars = [];
+  leftStyle = '';
+  rightStyle = '';
+  private bars: am4charts.DateAxisDataItem[] = [];
   private charts: am4charts.XYChart[] = [];
-  private dataReady: BehaviorSubject<boolean> = new BehaviorSubject(false);
+  private dataReady = new BehaviorSubject(false);
   private $dataReady = this.dataReady.asObservable();
-  private peaks = [];
+  private peaks: am4core.Label[] = [];
   private peakUncoord = new Subject<string>();
   private $peakUncoord = this.peakUncoord.asObservable().pipe(distinctUntilChanged());
   private peakCoord = new Subject<string>();
   private $peakCoord = this.peakCoord.asObservable().pipe(distinctUntilChanged());
-  private uncoordData: { date: Date; ev: number; rtu: number }[];
-  private coordData: { date: Date; ev: number; rtu: number }[];
+  private uncoordData!: { date: Date; ev: number; rtu: number }[];
+  private coordData!: { date: Date; ev: number; rtu: number }[];
 
   constructor(
     private papa: Papa,
     private zone: NgZone
   ) {
-    const view = localStorage.getItem('view');
+    const view = localStorage.getItem('view') || '';
     if (['rtu', 'ev'].includes(view)) {
       this.view = view as ViewType;
     }
@@ -191,12 +191,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     valueAxis.title.text = 'kW';
     valueAxis.title.dx = -12;
     valueAxis.renderer.labels.template.dx = -20;
-    valueAxis.tooltip.disabled = true;
+    if (valueAxis.tooltip) {
+      valueAxis.tooltip.disabled = true;
+    }
 
     if (this.view === 'rtu') {
       valueAxis.max = this.rtuData[this.rtuData.length - 1]['Peak Running (kW) UnCoord'];
     } else if (this.view === 'ev') {
-      valueAxis.max = this.rtuData[this.rtuData.length - 1]['Peak EV (kW) Coord'];
+      valueAxis.max = this.rtuData[this.rtuData.length - 1]['Peak EV (kW) UnCoord'];
     }
 
     // const otherSeries = chart.series.push(new am4charts.LineSeries());
@@ -275,7 +277,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       header: true,
       skipEmptyLines: true,
       complete: result => {
-        this.rtuData = result.data.map(record => {
+        this.rtuData = result.data.map((record: { Time: string | Date }) => {
           record.Time = new Date(record.Time);
           return record;
         });
@@ -347,15 +349,19 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           chart.chartContainer.children.values[0].children.values[0].setPropertyValue('text', title, true);
           // @ts-ignore
           chart.yAxes.values[0].max = this.rtuData[this.rtuData.length - 1]['Peak Running (kW) UnCoord'];
+          // @ts-ignore
           chart.series.getIndex(1).hide(0);
+          // @ts-ignore
           chart.series.getIndex(0).show();
         } else if (this.view === 'ev') {
           const title = i === 0 ? 'Base Building + EVs' : 'RTU Coordination + EVs + ESS';
           // @ts-ignore
           chart.chartContainer.children.values[0].children.values[0].setPropertyValue('text', title, true);
           // @ts-ignore
-          chart.yAxes.values[0].max = this.rtuData[this.rtuData.length - 1]['Peak EV (kW) Coord'];
+          chart.yAxes.values[0].max = this.rtuData[this.rtuData.length - 1]['Peak EV (kW) UnCoord'];
+          // @ts-ignore
           chart.series.getIndex(0).hide(0);
+          // @ts-ignore
           chart.series.getIndex(1).show();
         }
       }
@@ -364,10 +370,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.update(this.timeIndex.current);
   }
 
-  private update(currentTimeIndex: number): void {
-    this.updateBars(currentTimeIndex);
-    this.updatePeaks(currentTimeIndex);
-    this.updateStyles(currentTimeIndex);
+  private update(currentTimeIndex: number | null): void {
+    if (typeof currentTimeIndex === 'number') {
+      this.updateBars(currentTimeIndex);
+      this.updatePeaks(currentTimeIndex);
+      this.updateStyles(currentTimeIndex);
+    }
   }
 
   private updateBars(currentTimeIndex: number): void {
@@ -382,7 +390,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.peakUncoord.next(this.rtuData[currentTimeIndex]['Peak Running (kW) UnCoord'].toFixed(1));
         this.peakCoord.next(this.rtuData[currentTimeIndex]['Peak Running (kW) Coord'].toFixed(1));
       } else if (this.view === 'ev') {
-        this.peakUncoord.next(this.rtuData[currentTimeIndex]['Peak EV (kW) Coord'].toFixed(1));
+        this.peakUncoord.next(this.rtuData[currentTimeIndex]['Peak EV (kW) UnCoord'].toFixed(1));
         this.peakCoord.next(this.rtuData[currentTimeIndex]['Peak ESS (kW) Coord'].toFixed(1));
       }
     }
@@ -397,7 +405,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     }, 'soft');
   }
 
-  private updateStyles(currentTimeIndex): void {
+  private updateStyles(currentTimeIndex: number): void {
     const data = this.rtuData[currentTimeIndex];
     let left = ['base'];
     let right = ['base'];
